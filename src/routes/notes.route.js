@@ -6,7 +6,7 @@ import {
   deleteNoteById,
   updateNoteById,
 } from "../controllers/notes.controller.js";
-import { asyncHandler } from "../middleware/asyncHandler.middleware.js";
+import { asyncHandler } from "..//asyncHandler.middleware.js";
 import { validateNote } from "../validators/note.validator.js";
 
 const notesRouter = Router();
@@ -19,6 +19,6 @@ notesRouter.get("/:id", asyncHandler(getNoteById));
 
 notesRouter.delete("/:id", asyncHandler(deleteNoteById));
 
-notesRouter.put("/:id", validateNote, asyncHandler(updateNoteById));
+notesRouter.put("/:id", asyncHandler(updateNoteById));
 
 export default notesRouter;
