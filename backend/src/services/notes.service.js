@@ -1,7 +1,7 @@
 import { Note } from "../models/note.model.js";
 
-export const createNote = async (title, content) => {
-  const note = new Note({ title, content });
+export const createNote = async (content) => {
+  const note = new Note({ content });
   return await note.save();
 };
 

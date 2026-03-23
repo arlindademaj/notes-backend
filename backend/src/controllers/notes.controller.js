@@ -2,15 +2,15 @@ import * as notesService from "../services/notes.service.js";
 
 // Create note
 export const createNote = async (req, res, next) => {
-  const { title, content } = req.body;
+  const { content } = req.body;
 
-  if (!title || !content) {
+  if (!content) {
     return res.status(BAD_REQUEST).json({
       error: "Title and content are required",
     });
   }
 
-  const note = await notesService.createNote(title, content);
+  const note = await notesService.createNote(content);
 
   res.status(201).json(note);
 };
