@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-function App() {
-  const [note, setNote] = useState("");
+export default function App() {
   const [notes, setNotes] = useState([]);
-  const [result, setResult] = useState(null);
+  const [activeNote, setActiveNote] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const editorRef = useRef(null);
 
   const API_URL = "http://localhost:3000";
 
@@ -13,8 +15,14 @@ function App() {
       const res = await fetch(`${API_URL}/notes`);
       const data = await res.json();
       setNotes(data);
+      if (data.length && !activeNote) {
+        setActiveNote(data[0]);
+        setTimeout(() => {
+          editorRef.current.innerText = data[0].content;
+        }, 0);
+      }
     } catch (err) {
-      console.error("Error fetching notes:", err);
+      console.error(err);
     }
   };
 
@@ -22,140 +30,140 @@ function App() {
     getNotes();
   }, []);
 
-  // ✏️ Create note
-  const handleCreateNote = async () => {
-    if (!note) return;
+  const saveNote = async () => {
+    const content = editorRef.current.innerText.trim();
+    if (!content) return;
 
-    try {
-      const res = await fetch("http://localhost:3000/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: note }), // must match backend
-      });
+    await fetch(`${API_URL}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
 
-      const data = await res.json();
-      console.log("Created note:", data);
-
-      setNote(""); // clear input
-      getNotes(); // refresh notes list
-    } catch (err) {
-      console.error("Error creating note:", err);
-    }
+    getNotes();
   };
 
-  // ❌ Delete note
-  const handleDelete = async (id) => {
-    try {
-      await fetch(`${API_URL}/notes/${id}`, {
-        method: "DELETE",
-      });
-
-      getNotes();
-    } catch (err) {
-      console.error("Error deleting note:", err);
-    }
+  const handleSelect = (note) => {
+    setActiveNote(note);
+    editorRef.current.innerText = note.content;
   };
 
-  // 🤖 Analyze note
-  const handleAnalyze = async (content) => {
+  const handleAnalyze = async () => {
+    const content = editorRef.current.innerText;
+    if (!content.trim()) return;
+
     setLoading(true);
+    setResult(null);
 
-    try {
-      const res = await fetch(`${API_URL}/notes/ai-process`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content }),
-      });
+    const res = await fetch(`${API_URL}/notes/ai-process`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
 
-      const data = await res.json();
-      setResult(data);
-    } catch (error) {
-      console.error("Error analyzing note:", error);
-    }
-
+    const data = await res.json();
+    setResult(data);
     setLoading(false);
   };
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial" }}>
-      <h1>🧠 Smart Notes AI</h1>
+    <div className="h-screen flex bg-[#f2f2f7] text-[#1c1c1e]">
+      {/* Sidebar */}
+      <div className="w-80 bg-[#f7f7fa] border-r border-gray-200 flex flex-col">
+        <div className="px-5 py-4 text-xl font-semibold">Notes</div>
 
-      {/* ✏️ Create Note */}
-      <textarea
-        rows="5"
-        cols="60"
-        placeholder="Write your note..."
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
+        <div className="flex-1 overflow-y-auto">
+          {notes.map((n) => (
+            <div
+              key={n._id}
+              onClick={() => handleSelect(n)}
+              className={`px-5 py-4 cursor-pointer transition rounded-lg mx-2 mb-1 
+                ${
+                  activeNote?._id === n._id
+                    ? "bg-white shadow-sm"
+                    : "hover:bg-gray-200/60"
+                }`}
+            >
+              <p className="text-sm font-medium line-clamp-1">{n.content}</p>
+              <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                {n.content}
+              </p>
+            </div>
+          ))}
+        </div>
 
-      <br />
-      <br />
-
-      <button onClick={handleCreateNote}>Save Note</button>
-
-      {/* 📋 Notes List */}
-      <h2 style={{ marginTop: "30px" }}>Your Notes</h2>
-
-      {notes.length === 0 && <p>No notes yet...</p>}
-
-      {notes.map((n) => (
-        <div
-          key={n._id}
-          style={{
-            border: "1px solid gray",
-            padding: "10px",
-            marginTop: "10px",
-            borderRadius: "5px",
-          }}
-        >
-          <p>{n.content}</p>
-
-          <button onClick={() => handleAnalyze(n.content)}>Analyze</button>
-
+        <div className="p-3">
           <button
-            onClick={() => handleDelete(n._id)}
-            style={{ marginLeft: "10px" }}
+            onClick={() => {
+              setActiveNote(null);
+              editorRef.current.innerText = "";
+            }}
+            className="w-full bg-[#ffd60a] py-2 rounded-xl font-medium"
           >
-            Delete
+            New Note
           </button>
         </div>
-      ))}
+      </div>
 
-      {/* 🤖 AI Result */}
-      {result && (
-        <div style={{ marginTop: "30px" }}>
-          <h2>Summary</h2>
-          <p>{result.summary}</p>
+      {/* Editor */}
+      <div className="flex-1 flex flex-col">
+        <div className="px-6 py-4 bg-[#fdfdfd] border-b border-gray-200 flex justify-between items-center">
+          <span className="text-sm text-gray-500">
+            {activeNote ? "Note" : "New Note"}
+          </span>
 
-          <h3>Key Points</h3>
-          <ul>
-            {result.key_points.map((p, i) => (
-              <li key={i}>{p}</li>
-            ))}
-          </ul>
+          <div className="flex gap-4 text-sm">
+            <button onClick={handleAnalyze} className="text-indigo-500">
+              Analyze
+            </button>
 
-          <h3>🚀 Improve Next</h3>
-          <ul>
-            {result.next_topics.map((t, i) => (
-              <li key={i}>{t}</li>
-            ))}
-          </ul>
-
-          <h3>Tags</h3>
-          <div>
-            {result.tags.map((tag, i) => (
-              <span key={i} style={{ marginRight: "8px" }}>
-                #{tag}
-              </span>
-            ))}
+            <button onClick={saveNote} className="text-blue-500">
+              Save
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Writing Area */}
+        <div className="flex-1 overflow-y-auto flex justify-center">
+          <div className="w-full max-w-2xl px-6 py-10">
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              className="outline-none text-[20px] leading-9 min-h-[300px]"
+              style={{
+                fontFamily:
+                  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* AI Panel */}
+        {(loading || result) && (
+          <div className="border-t border-gray-200 bg-[#f9f9fb] p-5 text-sm">
+            {loading && <p className="text-gray-500">Analyzing...</p>}
+
+            {result && (
+              <div className="space-y-3">
+                <div>
+                  <strong>Summary</strong>
+                  <p className="text-gray-600">{result.summary}</p>
+                </div>
+
+                <div>
+                  <strong>Key Points</strong>
+                  <ul className="list-disc ml-5">
+                    {result.key_points.map((p, i) => (
+                      <li key={i}>{p}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-export default App;
